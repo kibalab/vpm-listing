@@ -1,15 +1,15 @@
 {
-    "name":"Example Listing",
-    "id":"com.vrchat.example-listing",
-    "url":"https://vrchat-community.github.io/template-package-listing/index.json",
+    "name":"VPM Listing by KIBA Lab",
+    "id":"com.kibalab.vpm-listing",
+    "url":"https://kibalab.github.io/vpm-listing/index.json",
     "author":{
-        "email":"developer@vrchat.com",
-        "name":"VRChat",
-        "url":"https://hello.vrchat.com"
+        "email":"root@kiba.red",
+        "name":"KIBA",
+        "url":"https://kiba.red"
     },
-    "description":"Example listing of VRChat packages",
+    "description":"A VPM package listing maintained by KIBA Lab.",
     "infoLink":{
-        "url":"http://github.com/vrchat-community/template-package-listing",
+        "url":"http://github.com/kibalab/vpm-listing",
         "text":"View on GitHub"
     },
     "bannerUrl":"banner.png",
