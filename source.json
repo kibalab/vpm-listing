@@ -1,11 +1,11 @@
 {
-    "name":"VPM Listing by KIBA Lab",
-    "id":"com.kibalab.vpm-listing",
+    "name":"KIBA Lab. VRChat Packages",
+    "id":"com.kibalab.vpm",
     "url":"https://kibalab.github.io/vpm-listing/index.json",
     "author":{
         "email":"root@kiba.red",
         "name":"KIBA",
-        "url":"https://kiba.red"
+        "url":"https://vpm.kiba.red"
     },
     "description":"A VPM package listing maintained by KIBA Lab.",
     "infoLink":{
