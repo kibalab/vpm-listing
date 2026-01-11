@@ -27,11 +27,11 @@ You'll need to edit some of the files in this template, starting with [`source.j
 
 ## 📃 Rebuilding the Listing
 
-Whenever you make a change to the `main` branch, or when you trigger it manually, the 'Build Repo Listing' action will make a new index of all the releases available and publish them as a website hosted fore free on GitHub Pages. This listing can be used by the VPM to keep your package up to date, and the generated index page can serve as a simple landing page with info for your package. The URL for your package will be in the format https://username.github.io/repo-name.
+Whenever you make a change to the `main` branch, or when you trigger it manually, the 'Build Repo Listing' action will regenerate the VPM repo listing and publish it to GitHub Pages. Only `index.json` and optional package media are deployed; the `Website` directory remains a build template and is not published. The URL for your listing will be in the format https://username.github.io/repo-name/index.json.
 
-## 🏠 Customizing the Landing Page
+## 🖼️ Package Media
 
-The contents of the `Website` directory can be customized to change the appearance of the landing page. Most of the information will be automatically filled in with information from [`source.json`](source.json). Customizing the landing page by hand is not required.
+Hero thumbnails (or other package media) can be hosted from this repo by placing image files under `package-media/`. The workflow copies that folder into GitHub Pages so files are available at https://username.github.io/repo-name/package-media/<filename>. Reference those URLs from your package manifests (for example, `imageUrl` or `thumbnailUrl`) so they show up as metadata for each package.
 
 ## Technical Stuff
 
