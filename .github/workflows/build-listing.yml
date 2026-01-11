@@ -49,6 +49,21 @@ jobs:
             ~/.nuget/packages
           key: ${{ runner.os }}-${{ hashFiles('**/global.json', '**/*.csproj') }}
           
+      - name: Ensure Website templates
+        run: |
+          mkdir -p "${{ env.listPublishDirectory }}"
+          if [ ! -f "${{ env.listPublishDirectory }}/index.html" ]; then
+            printf '%s\n' \
+              '<!doctype html>' \
+              '<meta charset="utf-8">' \
+              '<title>{{ listingInfo.Name }}</title>' \
+              '<p>Listing JSON: <a href="{{ listingInfo.Url }}">{{ listingInfo.Url }}</a></p>' \
+              > "${{ env.listPublishDirectory }}/index.html"
+          fi
+          if [ ! -f "${{ env.listPublishDirectory }}/app.js" ]; then
+            printf "" > "${{ env.listPublishDirectory }}/app.js"
+          fi
+          
       - name: Build Package Version Listing
         run: ${{env.pathToCi}}/build.cmd BuildMultiPackageListing --root ${{env.pathToCi}} --list-publish-directory $GITHUB_WORKSPACE/${{env.listPublishDirectory}}
         env:
