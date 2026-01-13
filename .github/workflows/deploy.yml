@@ -36,6 +36,12 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Debug dispatch payload
+        if: github.event_name == 'repository_dispatch'
+        run: |
+          echo "repo='${{ github.event.client_payload.repo }}'"
+          echo "ref='${{ github.event.client_payload.ref }}'"
+
       - name: Ensure repo in source.json (dispatch only)
         id: ensure_source
         if: github.event_name == 'repository_dispatch'
