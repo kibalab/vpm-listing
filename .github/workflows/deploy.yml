@@ -40,20 +40,40 @@ jobs:
         id: ensure_source
         if: github.event_name == 'repository_dispatch'
         run: |
-            python3 -c 'import json,os; repo=os.environ.get("REPO","").strip(); out=os.environ["GITHUB_OUTPUT"]; changed=False; data=json.load(open("source.json","r",encoding="utf-8")); arr=data.get("githubRepos",[]); arr_l=[x.lower() for x in arr]; 
-            if repo and repo.lower() not in arr_l: arr.append(repo); data["githubRepos"]=arr; json.dump(data,open("source.json","w",encoding="utf-8"),ensure_ascii=False,indent=2); changed=True; 
-            open(out,"a",encoding="utf-8").write("changed=%s\n"%("true" if changed else "false"))'
+          python3 - <<'PY'
+          import json, os
+
+          repo = (os.environ.get("REPO") or "").strip()
+          out = os.environ["GITHUB_OUTPUT"]
+
+          changed = False
+          if repo:
+              with open("source.json", "r", encoding="utf-8") as f:
+                  data = json.load(f)
+
+              arr = data.get("githubRepos", [])
+              arr_l = [x.lower() for x in arr]
+              if repo.lower() not in arr_l:
+                  arr.append(repo)
+                  data["githubRepos"] = arr
+                  with open("source.json", "w", encoding="utf-8") as f:
+                      json.dump(data, f, ensure_ascii=False, indent=2)
+                  changed = True
+
+          with open(out, "a", encoding="utf-8") as f:
+              f.write(f"changed={'true' if changed else 'false'}\n")
+          PY
         env:
-            REPO: ${{ github.event.client_payload.repo }}
+          REPO: ${{ github.event.client_payload.repo }}
 
       - name: Commit source.json only (only when newly added)
         if: github.event_name == 'repository_dispatch' && steps.ensure_source.outputs.changed == 'true'
         run: |
-            git config user.name "github-actions[bot]"
-            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-            git add source.json
-            git commit -m "Add repo: ${{ github.event.client_payload.repo }}"
-            git push
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add source.json
+          git commit -m "Add repo: ${{ github.event.client_payload.repo }}"
+          git push
 
       - uses: actions/checkout@v4
         with:
@@ -124,19 +144,26 @@ jobs:
               url="https://x-access-token:${READ_TOKEN}@github.com/${repo}.git"
             fi
 
+            git clone --filter=blob:none --sparse "$url" "$dir"
+
             if [ -n "$ref" ]; then
-              git clone --depth 1 --branch "$ref" --filter=blob:none --sparse "$url" "$dir"
-            else
-              git clone --depth 1 --filter=blob:none --sparse "$url" "$dir"
+              (cd "$dir" && git fetch --depth 1 origin "$ref" && git checkout -q FETCH_HEAD)
             fi
 
-            (cd "$dir" && git sparse-checkout init --no-cone && git sparse-checkout set "Packages/*/package-media")
+            (cd "$dir" && git sparse-checkout init --no-cone && git sparse-checkout set "Packages/*/package.json" "Packages/*/package-media")
 
-            find "$dir/Packages" -mindepth 3 -maxdepth 3 -type d -name package-media | while read -r d; do
+            if [ ! -d "$dir/Packages" ]; then
+              return 0
+            fi
+
+            shopt -s nullglob
+            for d in "$dir"/Packages/*/package-media; do
+              [ -d "$d" ] || continue
               pkg="$(basename "$(dirname "$d")")"
               mkdir -p "${{ env.mergedMediaDirectory }}/$pkg"
               rsync -a --ignore-existing "$d/" "${{ env.mergedMediaDirectory }}/$pkg/"
             done
+            shopt -u nullglob
           }
 
           if [ "${{ github.event_name }}" = "repository_dispatch" ] && [ -n "${DISPATCH_REPO:-}" ]; then
