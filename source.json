@@ -1,29 +1,30 @@
 {
-    "name":"KIBA Lab. VRChat Packages",
-    "id":"com.kibalab.vpm",
-    "url":"https://kibalab.github.io/vpm-listing/index.json",
-    "author":{
-        "email":"root@kiba.red",
-        "name":"KIBA",
-        "url":"https://vpm.kiba.red"
-    },
-    "description":"A VPM package listing maintained by KIBA Lab.",
-    "infoLink":{
-        "url":"http://github.com/kibalab/vpm-listing",
-        "text":"View on GitHub"
-    },
-    "bannerUrl":"banner.png",
-    "githubRepos":[
-        "vrchat-community/clientsim",
-        "kibalab/UdonSharpWatcher"
-    ],
-    "packages":[
-        {
-            "name":"com.vrchat.udonsharp",
-            "releases":[
-                "https://github.com/vrchat-community/UdonSharp/releases/download/1.1.7/com.vrchat.UdonSharp.zip",
-                "https://github.com/vrchat-community/UdonSharp/releases/download/1.1.6/com.vrchat.UdonSharp-1.1.6.zip"
-            ]
-        }
-    ]
+  "name": "KIBA Lab. VRChat Packages",
+  "id": "com.kibalab.vpm",
+  "url": "https://kibalab.github.io/vpm-listing/index.json",
+  "author": {
+    "email": "root@kiba.red",
+    "name": "KIBA",
+    "url": "https://vpm.kiba.red"
+  },
+  "description": "A VPM package listing maintained by KIBA Lab.",
+  "infoLink": {
+    "url": "http://github.com/kibalab/vpm-listing",
+    "text": "View on GitHub"
+  },
+  "bannerUrl": "banner.png",
+  "githubRepos": [
+    "vrchat-community/clientsim",
+    "kibalab/UdonSharpWatcher",
+    "kibalab/VRCTimelinePlayer"
+  ],
+  "packages": [
+    {
+      "name": "com.vrchat.udonsharp",
+      "releases": [
+        "https://github.com/vrchat-community/UdonSharp/releases/download/1.1.7/com.vrchat.UdonSharp.zip",
+        "https://github.com/vrchat-community/UdonSharp/releases/download/1.1.6/com.vrchat.UdonSharp-1.1.6.zip"
+      ]
+    }
+  ]
 }
