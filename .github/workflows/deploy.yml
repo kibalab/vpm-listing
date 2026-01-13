@@ -1,0 +1,184 @@
+name: Build & Deploy Listing
+
+on:
+  workflow_dispatch:
+  repository_dispatch:
+    types: [package-released]
+  push:
+    branches: [main]
+    paths:
+      - source.json
+      - package-media/**
+      - Website/**
+
+permissions:
+  contents: write
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+env:
+  listPublishDirectory: Website
+  publishDirectory: publish
+  packageMediaDirectory: package-media
+  mergedMediaDirectory: package-media-merged
+  pathToCi: ci
+
+jobs:
+  build-and-deploy:
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Ensure repo in source.json (dispatch only)
+        id: ensure_source
+        if: github.event_name == 'repository_dispatch'
+        run: |
+          python3 - <<'PY'
+          import json, os
+          repo = os.environ["REPO"]
+          with open("source.json","r",encoding="utf-8") as f:
+              data = json.load(f)
+          arr = data.get("githubRepos", [])
+          changed = repo not in arr
+          if changed:
+              arr.append(repo)
+              data["githubRepos"] = sorted(set(arr))
+              with open("source.json","w",encoding="utf-8") as f:
+                  json.dump(data,f,ensure_ascii=False,indent=2)
+          print(f"changed={'true' if changed else 'false'}")
+          PY | tee /tmp/out.txt
+          echo "changed=$(sed -n 's/^changed=//p' /tmp/out.txt | tail -n 1)" >> $GITHUB_OUTPUT
+        env:
+          REPO: ${{ github.event.client_payload.repo }}
+
+      - name: Commit source.json only (only when newly added)
+        if: github.event_name == 'repository_dispatch' && steps.ensure_source.outputs.changed == 'true'
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add source.json
+          git commit -m "Add repo: ${{ github.event.client_payload.repo }}"
+          git push
+
+      - uses: actions/checkout@v4
+        with:
+          repository: vrchat-community/package-list-action
+          path: ${{ env.pathToCi }}
+          clean: false
+
+      - name: Restore Cache
+        uses: actions/cache@v4
+        with:
+          path: |
+            ${{ env.pathToCi }}/.nuke/temp
+            ~/.nuget/packages
+          key: ${{ runner.os }}-${{ hashFiles('**/global.json', '**/*.csproj') }}
+
+      - name: Ensure Website templates
+        run: |
+          mkdir -p "${{ env.listPublishDirectory }}"
+          if [ ! -f "${{ env.listPublishDirectory }}/index.html" ]; then
+            printf '%s\n' \
+              '<!doctype html>' \
+              '<meta charset="utf-8">' \
+              '<title>{{ listingInfo.Name }}</title>' \
+              '<p>Listing JSON: <a href="{{ listingInfo.Url }}">{{ listingInfo.Url }}</a></p>' \
+              > "${{ env.listPublishDirectory }}/index.html"
+          fi
+          if [ ! -f "${{ env.listPublishDirectory }}/app.js" ]; then
+            printf "" > "${{ env.listPublishDirectory }}/app.js"
+          fi
+
+      - name: Build Package Version Listing
+        run: ${{ env.pathToCi }}/build.cmd BuildMultiPackageListing --root ${{ env.pathToCi }} --list-publish-directory $GITHUB_WORKSPACE/${{ env.listPublishDirectory }}
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Merge package media (listing + package repos)
+        env:
+          READ_TOKEN: ${{ secrets.VPM_PACKAGES_READ_TOKEN }}
+          DISPATCH_REPO: ${{ github.event.client_payload.repo }}
+          DISPATCH_REF: ${{ github.event.client_payload.ref }}
+        run: |
+          set -euo pipefail
+          rm -rf "${{ env.mergedMediaDirectory }}"
+          mkdir -p "${{ env.mergedMediaDirectory }}"
+
+          if [ -d "${{ env.packageMediaDirectory }}" ]; then
+            rsync -a "${{ env.packageMediaDirectory }}/" "${{ env.mergedMediaDirectory }}/"
+          fi
+
+          repos=$(python3 - <<'PY'
+          import json
+          with open("source.json","r",encoding="utf-8") as f:
+              data=json.load(f)
+          for r in data.get("githubRepos",[]):
+              print(r)
+          PY
+          )
+
+          fetch_one () {
+            local repo="$1"
+            local ref="${2:-}"
+            local url="https://github.com/${repo}.git"
+            local dir="_pkgsrc/$(echo "$repo" | tr '/' '__')"
+            rm -rf "$dir"
+            mkdir -p "_pkgsrc"
+
+            if [ -n "${READ_TOKEN:-}" ]; then
+              url="https://x-access-token:${READ_TOKEN}@github.com/${repo}.git"
+            fi
+
+            if [ -n "$ref" ]; then
+              git clone --depth 1 --branch "$ref" --filter=blob:none --sparse "$url" "$dir"
+            else
+              git clone --depth 1 --filter=blob:none --sparse "$url" "$dir"
+            fi
+
+            (cd "$dir" && git sparse-checkout init --no-cone && git sparse-checkout set "Packages/*/package-media")
+
+            find "$dir/Packages" -mindepth 3 -maxdepth 3 -type d -name package-media | while read -r d; do
+              pkg="$(basename "$(dirname "$d")")"
+              mkdir -p "${{ env.mergedMediaDirectory }}/$pkg"
+              rsync -a --ignore-existing "$d/" "${{ env.mergedMediaDirectory }}/$pkg/"
+            done
+          }
+
+          if [ "${{ github.event_name }}" = "repository_dispatch" ] && [ -n "${DISPATCH_REPO:-}" ]; then
+            fetch_one "$DISPATCH_REPO" "${DISPATCH_REF:-}"
+          else
+            while read -r r; do
+              [ -z "$r" ] && continue
+              fetch_one "$r"
+            done <<< "$repos"
+          fi
+
+      - name: Prepare publish output
+        run: |
+          rm -rf "${{ env.publishDirectory }}"
+          mkdir -p "${{ env.publishDirectory }}"
+          cp "${{ env.listPublishDirectory }}/index.json" "${{ env.publishDirectory }}/index.json"
+          mkdir -p "${{ env.publishDirectory }}/${{ env.packageMediaDirectory }}"
+          rsync -a "${{ env.mergedMediaDirectory }}/" "${{ env.publishDirectory }}/${{ env.packageMediaDirectory }}/"
+          if [ -d "${{ env.listPublishDirectory }}" ]; then
+            cp -R "${{ env.listPublishDirectory }}" "${{ env.publishDirectory }}/${{ env.listPublishDirectory }}"
+          fi
+
+      - name: Setup Pages
+        uses: actions/configure-pages@v5
+
+      - name: Upload artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: ${{ env.publishDirectory }}
+
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
